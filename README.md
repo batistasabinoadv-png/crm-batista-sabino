@@ -1,0 +1,575 @@
+[index.html](https://github.com/user-attachments/files/28116070/index.html)
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Jurídico — Batista & Sabino Advocacia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+
+<!-- ╔══════════════════════════════════════════════════════════════════╗
+     ║  CONFIGURAÇÃO DO FIREBASE — PREENCHA COM SEUS DADOS            ║
+     ║                                                                 ║
+     ║  1. Acesse console.firebase.google.com                         ║
+     ║  2. Abra seu projeto → Configurações → Seus apps → </> Web     ║
+     ║  3. Copie os valores do firebaseConfig e cole abaixo           ║
+     ║                                                                 ║
+     ║  Substitua cada "SEU_VALOR_AQUI" pelo valor real               ║
+     ╚══════════════════════════════════════════════════════════════════╝ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy }
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // ▼▼▼ COLE AQUI OS DADOS DO SEU PROJETO FIREBASE ▼▼▼
+  const firebaseConfig = {
+    apiKey:            "SEU_API_KEY_AQUI",
+    authDomain:        "SEU_PROJECT_ID.firebaseapp.com",
+    projectId:         "SEU_PROJECT_ID",
+    storageBucket:     "SEU_PROJECT_ID.appspot.com",
+    messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+    appId:             "SEU_APP_ID"
+  };
+  // ▲▲▲ FIM DA CONFIGURAÇÃO ▲▲▲
+
+  const app = initializeApp(firebaseConfig);
+  const firestore = getFirestore(app);
+
+  // ── Expõe funções para o código global ──────────────────────────────
+  window._fb = {
+    async getAll(col) {
+      const snap = await getDocs(collection(firestore, col));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    },
+    async save(col, id, data) {
+      await setDoc(doc(firestore, col, String(id)), data, { merge: true });
+    },
+    async remove(col, id) {
+      await deleteDoc(doc(firestore, col, String(id)));
+    },
+    onSnapshot(col, cb) {
+      return onSnapshot(collection(firestore, col), snap => {
+        cb(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      });
+    }
+  };
+
+  window._fbReady = true;
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<style>
+  :root {
+    --bg:#0F1117;--surface:#161B27;--card:#1C2333;
+    --border:#252D40;--accent:#C9A84C;
+    --blue:#3B82F6;--green:#22C55E;--red:#EF4444;
+    --orange:#F97316;--purple:#A855F7;
+    --text:#E8EAF0;--muted:#6B7A99;--subtle:#2A3347;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;display:flex;min-height:100vh}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#252D40;border-radius:4px}
+
+  #sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;bottom:0;left:0;z-index:100;display:flex;flex-direction:column}
+  .logo{padding:22px 18px 14px;border-bottom:1px solid var(--border)}
+  .logo-name{font-size:13px;color:var(--accent);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .logo-sub{font-size:11px;color:var(--muted);margin-top:2px}
+  nav{flex:1;padding:8px 10px}
+  .nav-btn{display:flex;align-items:center;gap:10px;width:100%;background:transparent;color:var(--muted);border:1px solid transparent;border-radius:9px;padding:10px 14px;font-size:14px;font-weight:500;cursor:pointer;text-align:left;transition:all .15s;font-family:inherit;position:relative}
+  .nav-btn.active{background:rgba(201,168,76,.12);color:var(--accent);border-color:rgba(201,168,76,.3);font-weight:700}
+  .nav-btn:hover:not(.active){background:rgba(255,255,255,.04);color:var(--text)}
+  .badge-urgent{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700}
+  .sidebar-footer{padding:14px 18px;border-top:1px solid var(--border)}
+  .adv-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .adv-avatar{width:28px;height:28px;border-radius:50%;background:rgba(201,168,76,.15);border:1.5px solid rgba(201,168,76,.3);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--accent);font-weight:700;flex-shrink:0}
+  .adv-name{font-size:12px;color:var(--text);font-weight:600}
+  .adv-oab{font-size:10px;color:var(--muted)}
+
+  #main{margin-left:220px;flex:1;padding:30px 30px 50px;min-height:100vh}
+  .view{display:none;max-width:980px}.view.active{display:block}
+  .view-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--text);margin-bottom:22px}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;transition:border-color .15s}
+  .card.clickable{cursor:pointer}.card.clickable:hover{border-color:rgba(201,168,76,.5)}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+  .kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;text-align:center}
+  .kpi-icon{font-size:26px;margin-bottom:6px}
+  .kpi-value{font-family:'Playfair Display',serif;font-size:34px;font-weight:700}
+  .kpi-label{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.05em;text-transform:uppercase}
+
+  .badge{display:inline-block;border-radius:6px;padding:2px 9px;font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .grid-split{display:grid;gap:14px}.grid-split.with-panel{grid-template-columns:1fr 360px}
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  .search-input{flex:1;min-width:200px;background:var(--subtle);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
+  .search-input::placeholder{color:var(--muted)}
+  select.filter{background:var(--subtle);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--muted);font-size:13px;cursor:pointer;outline:none}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:opacity .15s;border:1.5px solid}
+  .btn:hover{opacity:.82}
+  .btn-primary{background:var(--accent);color:#0F1117;border-color:var(--accent)}
+  .btn-outline{background:transparent;color:var(--accent);border-color:var(--accent)}
+  .btn-danger{background:transparent;color:var(--red);border-color:var(--red)}
+  .btn-sm{padding:5px 12px;font-size:12px}
+
+  .panel{position:sticky;top:20px;align-self:flex-start}
+  .panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .panel-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--accent)}
+  .close-btn{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer}
+  .detail-row{margin-bottom:8px}
+  .detail-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .detail-value{font-size:13px;color:var(--text)}
+  .note-box{background:var(--subtle);border-radius:8px;padding:12px;margin-top:10px}
+  .panel-actions{display:flex;gap:8px;margin-top:14px}
+
+  .proc-card{margin-bottom:10px}
+  .proc-badges{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+  .proc-name{font-weight:700;font-size:15px;color:var(--text)}
+  .proc-client{color:var(--accent);font-size:13px;margin-top:2px}
+  .proc-meta{color:var(--muted);font-size:12px;margin-top:3px}
+  .proc-deadline{text-align:right;flex-shrink:0}
+  .proc-row{display:flex;justify-content:space-between;gap:12px}
+
+  .timeline{margin-top:14px}
+  .timeline-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+  .timeline-item{display:flex;gap:10px;margin-bottom:8px}
+  .timeline-line{width:2px;background:rgba(201,168,76,.3);border-radius:2px;flex-shrink:0;margin-top:4px}
+  .timeline-date{font-size:11px;color:var(--accent)}
+  .timeline-text{font-size:13px;color:var(--text)}
+  .timeline-input-row{display:flex;gap:8px;margin-top:8px}
+  .timeline-input{flex:1;background:var(--subtle);border:1px solid var(--border);border-radius:7px;padding:7px 11px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
+  .timeline-input::placeholder{color:var(--muted)}
+
+  .task-filters{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .filter-btn{background:var(--subtle);color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+  .filter-btn.active{background:var(--accent);color:#0F1117;border-color:var(--accent)}
+  .task-row{display:flex;gap:12px;align-items:flex-start}
+  .checkbox{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);background:transparent;cursor:pointer;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s}
+  .checkbox.done{border-color:var(--green);background:var(--green);color:#0F1117}
+  .task-title{font-weight:700;font-size:14px;color:var(--text)}
+  .task-title.done{text-decoration:line-through;color:var(--muted)}
+  .task-badges{display:flex;gap:6px;margin-top:5px;flex-wrap:wrap}
+  .task-deadline{text-align:right;flex-shrink:0;margin-left:14px}
+  .edit-link{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;font-family:inherit;margin-top:4px;display:block}
+
+  .model-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+  .model-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .model-icon{font-size:22px;margin-bottom:8px}
+  .model-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.4;margin-bottom:8px}
+  .area-filters{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.open{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
+  .modal.wide{max-width:720px}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+  .modal-title{font-family:'Playfair Display',serif;font-size:17px;color:var(--accent)}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  .form-col2{grid-column:span 2}
+  .form-group{margin-bottom:14px}
+  .form-label{display:block;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:5px}
+  .form-label span{color:var(--accent)}
+  .form-control{display:block;width:100%;background:var(--subtle);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
+  .form-control:focus{border-color:rgba(201,168,76,.5)}
+  textarea.form-control{resize:vertical;min-height:80px}
+  input[type=date].form-control::-webkit-calendar-picker-indicator{filter:invert(.5);cursor:pointer}
+
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .section-title{font-size:12px;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;font-weight:700;margin-bottom:14px}
+  .deadline-item{border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:10px}
+  .deadline-item:last-child{border-bottom:none;margin-bottom:0}
+  .deadline-row{display:flex;justify-content:space-between;align-items:flex-start}
+  .deadline-name{font-size:13px;font-weight:600;color:var(--text)}
+  .deadline-meta{font-size:11px;color:var(--muted);margin-top:3px}
+  .bar-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+  .bar-label{font-size:13px;color:var(--text)}
+  .bar-wrap{display:flex;align-items:center;gap:10px}
+  .bar{height:6px;background:rgba(201,168,76,.5);border-radius:4px}
+  .bar-count{font-size:12px;color:var(--muted);min-width:18px;text-align:right}
+
+  /* SYNC STATUS */
+  #sync-status{position:fixed;bottom:20px;right:20px;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;z-index:9999;transition:all .3s;opacity:0}
+  #sync-status.show{opacity:1}
+  #sync-status.saving{background:#F97316;color:#fff}
+  #sync-status.saved{background:var(--green);color:#fff}
+  #sync-status.error{background:var(--red);color:#fff}
+  #sync-status.offline{background:#6B7A99;color:#fff}
+
+  /* LOADING */
+  #loading-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+  .spinner{width:40px;height:40px;border:3px solid rgba(201,168,76,.2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loading-screen.hidden{display:none}
+
+  /* CONFIG ALERT */
+  #config-alert{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:9998;align-items:center;justify-content:center;padding:20px}
+  #config-alert.show{display:flex}
+  .config-box{background:var(--surface);border:2px solid var(--accent);border-radius:16px;padding:32px;max-width:540px;text-align:center}
+  .config-box h2{font-family:'Playfair Display',serif;color:var(--accent);margin-bottom:16px}
+  .config-box p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:12px}
+  .config-box code{background:var(--subtle);color:var(--accent);padding:2px 8px;border-radius:4px;font-size:13px}
+  .version-badge{position:fixed;bottom:20px;left:230px;background:var(--card);border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:5px 12px;font-size:11px}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <div style="color:var(--muted);font-size:14px">Conectando ao banco de dados...</div>
+</div>
+
+<!-- CONFIG ALERT (exibido se Firebase não configurado) -->
+<div id="config-alert">
+  <div class="config-box">
+    <div style="font-size:40px;margin-bottom:12px">⚙️</div>
+    <h2>Firebase não configurado</h2>
+    <p>Para usar esta versão em nuvem, você precisa configurar seu projeto Firebase no arquivo <code>index.html</code>.</p>
+    <p>Abra o arquivo, localize a seção <code>firebaseConfig</code> (linha ~20) e substitua os valores <code>SEU_VALOR_AQUI</code> pelos dados do seu projeto.</p>
+    <p style="margin-top:16px"><strong style="color:var(--accent)">Consulte o Manual de Instalação</strong> (Capítulo 3, seção 3.3.3) para o passo a passo completo.</p>
+    <p style="margin-top:8px;font-size:12px;color:var(--muted)">Se quiser usar sem Firebase, utilize a <strong>Versão A</strong> (arquivo CRM_Local_Batista_Sabino.html)</p>
+    <button class="btn btn-primary" style="margin-top:20px" onclick="document.getElementById('config-alert').classList.remove('show');document.getElementById('loading-screen').classList.add('hidden');startApp(true)">
+      Continuar em modo demonstração
+    </button>
+  </div>
+</div>
+
+<div id="sync-status"></div>
+<div class="version-badge" id="version-badge">☁️ Versão Nuvem — Firebase</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="logo">
+    <div class="logo-name">Batista & Sabino</div>
+    <div class="logo-sub">Advocacia · Itabira/MG</div>
+  </div>
+  <nav>
+    <button class="nav-btn active" onclick="goTo('dashboard')"><span>◈</span> Dashboard</button>
+    <button class="nav-btn" onclick="goTo('clients')"><span>◉</span> Clientes</button>
+    <button class="nav-btn" onclick="goTo('processes')"><span>⊕</span> Processos</button>
+    <button class="nav-btn" id="nav-tasks" onclick="goTo('tasks')">
+      <span>◎</span> Tarefas
+      <span class="badge-urgent" id="urgent-badge" style="display:none">0</span>
+    </button>
+    <button class="nav-btn" onclick="goTo('documents')"><span>◫</span> Modelos</button>
+  </nav>
+  <div class="sidebar-footer">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Advogados</div>
+    <div class="adv-row"><div class="adv-avatar">IS</div><div><div class="adv-name">Igor Sabino</div><div class="adv-oab">OAB/MG 238.019</div></div></div>
+    <div class="adv-row"><div class="adv-avatar">SB</div><div><div class="adv-name">Sara Batista</div><div class="adv-oab">OAB/MG 211.122</div></div></div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="view-dashboard" class="view active">
+    <div class="view-title">Painel de Controle</div>
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="dash-grid">
+      <div class="card"><div class="section-title">⏰ Prazos nos próximos 7 dias</div><div id="dash-deadlines"></div></div>
+      <div class="card"><div class="section-title">📂 Processos por Área</div><div id="dash-areas"></div></div>
+    </div>
+  </div>
+
+  <div id="view-clients" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+      <div class="view-title" style="margin:0">Clientes</div>
+      <button class="btn btn-primary" onclick="openClientForm()">+ Novo Cliente</button>
+    </div>
+    <div class="toolbar">
+      <input class="search-input" id="client-search" placeholder="Buscar por nome ou CPF..." oninput="renderClients()">
+      <select class="filter" id="client-area-filter" onchange="renderClients()"><option value="">Todas as áreas</option></select>
+    </div>
+    <div class="grid-split" id="clients-layout"><div id="clients-list"></div></div>
+  </div>
+
+  <div id="view-processes" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+      <div class="view-title" style="margin:0">Processos</div>
+      <button class="btn btn-primary" onclick="openProcessForm()">+ Novo Processo</button>
+    </div>
+    <div class="toolbar">
+      <input class="search-input" id="proc-search" placeholder="Buscar por nº, cliente ou tipo..." oninput="renderProcesses()">
+      <select class="filter" id="proc-area-filter" onchange="renderProcesses()"><option value="">Área</option></select>
+      <select class="filter" id="proc-adv-filter" onchange="renderProcesses()"><option value="">Responsável</option><option>Igor Sabino</option><option>Sara Batista</option></select>
+    </div>
+    <div class="grid-split" id="processes-layout"><div id="processes-list"></div></div>
+  </div>
+
+  <div id="view-tasks" class="view">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">
+      <div class="view-title" style="margin:0">Tarefas & Prazos</div>
+      <button class="btn btn-primary" onclick="openTaskForm()">+ Nova Tarefa</button>
+    </div>
+    <div class="task-filters">
+      <button class="filter-btn active" data-filter="todas" onclick="setTaskFilter(this)">Todas</button>
+      <button class="filter-btn" data-filter="pendentes" onclick="setTaskFilter(this)">Pendentes</button>
+      <button class="filter-btn" data-filter="urgentes" onclick="setTaskFilter(this)">🔥 Urgentes</button>
+      <button class="filter-btn" data-filter="concluidas" onclick="setTaskFilter(this)">Concluídas</button>
+    </div>
+    <div id="tasks-list"></div>
+  </div>
+
+  <div id="view-documents" class="view">
+    <div class="view-title">Modelos de Documentos</div>
+    <div class="area-filters" id="model-filters"></div>
+    <div class="model-grid" id="model-grid"></div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Formulário</div>
+      <button class="close-btn" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DATA LAYER — Firebase Firestore com fallback local
+// ══════════════════════════════════════════════════════════════
+const DEMO_DATA = {
+  clients: [
+    { id: "c1", name: "Amanda Figueiredo", cpf: "115.934.506-64", phone: "(31) 98765-4321", email: "amanda@email.com", city: "Itabira/MG", status: "ativo", area: "Bancário", createdAt: "2026-01-15", notes: "Ação revisional OMNI S/A. Veículo Honda CG 160." },
+    { id: "c2", name: "Maria Aparecida Lage", cpf: "299.655.866-91", phone: "(31) 91234-5678", email: "maria@email.com", city: "Itabira/MG", status: "ativo", area: "Consumidor", createdAt: "2026-02-10", notes: "Plano de saúde Unimed. Reajuste abusivo." },
+  ],
+  processes: [
+    { id: "p1", clientId: "c1", number: "1002296-52.2026.8.13.0317", type: "Ação Revisional de Contrato", area: "Bancário", court: "1ª Vara Cível — Itabira/MG", system: "Eproc", status: "em_andamento", phase: "recursal", responsible: "Igor Sabino", deadline: "2026-06-05", value: "R$ 33.381,58", description: "Revisional contrato OMNI S/A.", events: [] },
+    { id: "p2", clientId: "c2", number: "Extrajudicial", type: "Notificação Extrajudicial", area: "Consumidor", court: "—", system: "—", status: "aguardando", phase: "extrajudicial", responsible: "Sara Batista", deadline: "2026-06-01", value: "—", description: "Pedido de documentos ao plano de saúde.", events: [] },
+  ],
+  tasks: [
+    { id: "t1", title: "Protocolar Agravo de Instrumento", processId: "p1", clientId: "c1", responsible: "Igor Sabino", priority: "urgente", status: "pendente", deadline: "2026-05-28", notes: "Prazo fatal." },
+    { id: "t2", title: "Aguardar resposta da Unimed", processId: "p2", clientId: "c2", responsible: "Sara Batista", priority: "normal", status: "pendente", deadline: "2026-06-01", notes: "" },
+  ]
+};
+
+let db = { clients: [], processes: [], tasks: [] };
+let useFirebase = false;
+let demoMode = false;
+
+function syncStatus(msg, type) {
+  const el = document.getElementById('sync-status');
+  el.textContent = msg; el.className = `show ${type}`;
+  if (type === 'saved') setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+async function startApp(demo = false) {
+  demoMode = demo;
+  if (demo) {
+    db = JSON.parse(JSON.stringify(DEMO_DATA));
+    document.getElementById('version-badge').textContent = '🔵 Modo Demonstração — Dados temporários';
+    document.getElementById('loading-screen').classList.add('hidden');
+    renderView('dashboard'); updateUrgentBadge(); return;
+  }
+  try {
+    // Load all collections
+    syncStatus('⟳ Carregando...', 'saving');
+    const [clients, processes, tasks] = await Promise.all([
+      window._fb.getAll('clients'),
+      window._fb.getAll('processes'),
+      window._fb.getAll('tasks'),
+    ]);
+    db.clients = clients;
+    db.processes = processes.map(p => ({ ...p, events: p.events || [] }));
+    db.tasks = tasks;
+
+    // If empty, seed with demo data
+    if (!clients.length && !processes.length) {
+      for (const c of DEMO_DATA.clients) await window._fb.save('clients', c.id, c);
+      for (const p of DEMO_DATA.processes) await window._fb.save('processes', p.id, p);
+      for (const t of DEMO_DATA.tasks) await window._fb.save('tasks', t.id, t);
+      db = JSON.parse(JSON.stringify(DEMO_DATA));
+    }
+
+    useFirebase = true;
+    syncStatus('✓ Conectado', 'saved');
+    document.getElementById('loading-screen').classList.add('hidden');
+    renderView('dashboard'); updateUrgentBadge();
+
+    // Real-time listeners
+    window._fb.onSnapshot('clients', data => { db.clients = data; if (currentView==='clients') renderClients(); if (currentView==='dashboard') renderDashboard(); updateUrgentBadge(); });
+    window._fb.onSnapshot('processes', data => { db.processes = data.map(p=>({...p,events:p.events||[]})); if (currentView==='processes') renderProcesses(); if (currentView==='dashboard') renderDashboard(); });
+    window._fb.onSnapshot('tasks', data => { db.tasks = data; if (currentView==='tasks') renderTasks(); updateUrgentBadge(); if (currentView==='dashboard') renderDashboard(); });
+
+  } catch(e) {
+    console.error(e);
+    syncStatus('⚠ Erro de conexão', 'error');
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('config-alert').classList.add('show');
+  }
+}
+
+async function fbSave(col, id, data) {
+  if (!useFirebase) return;
+  syncStatus('⟳ Salvando...', 'saving');
+  try { await window._fb.save(col, id, data); syncStatus('✓ Salvo na nuvem', 'saved'); }
+  catch(e) { syncStatus('⚠ Erro ao salvar', 'error'); }
+}
+async function fbDelete(col, id) {
+  if (!useFirebase) return;
+  syncStatus('⟳ Removendo...', 'saving');
+  try { await window._fb.remove(col, id); syncStatus('✓ Removido', 'saved'); }
+  catch(e) { syncStatus('⚠ Erro', 'error'); }
+}
+
+function newId(prefix) { return prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,6); }
+function today() { return new Date().toISOString().slice(0,10); }
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS (same as local version)
+// ══════════════════════════════════════════════════════════════
+const AREAS=["Bancário","Previdenciário","Trabalhista","Consumidor","Cível","Criminal","Família","Tributário","Empresarial","Imobiliário"];
+const SYSTEMS=["PJe","Eproc","SEEU","Themis (TJMG 2ª instância)","e-CAC","—"];
+const PHASES=["extrajudicial","conhecimento","recursal","execucao","arquivado","transitado"];
+const PHASE_LABELS={extrajudicial:"Extrajudicial",conhecimento:"Conhecimento",recursal:"Recursal",execucao:"Execução",arquivado:"Arquivado",transitado:"Transitado"};
+const STATUS_COLORS={ativo:"#22C55E",arquivado:"#6B7A99",prospecto:"#F97316",em_andamento:"#3B82F6",aguardando:"#F97316",concluido:"#22C55E"};
+const STATUS_LABELS={em_andamento:"Em Andamento",aguardando:"Aguardando",arquivado:"Arquivado",concluido:"Concluído",ativo:"Ativo",prospecto:"Prospecto"};
+const PRIORITY_COLORS={urgente:"#EF4444",importante:"#F97316",normal:"#3B82F6"};
+const TAG_COLORS={Bancário:"#3B82F6",Consumidor:"#22C55E",Família:"#A855F7",Criminal:"#EF4444",Recursal:"#F97316",Trabalhista:"#06B6D4",Previdenciário:"#8B5CF6",Administrativo:"#6B7A99",Processual:"#C9A84C"};
+
+function fmtDate(d){if(!d||d==='—')return'—';const p=d.split('-');return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d}
+function daysUntil(d){if(!d)return null;return Math.ceil((new Date(d)-new Date())/86400000)}
+function badge(text,color){return`<span class="badge" style="background:${color}22;color:${color};border:1px solid ${color}44">${text}</span>`}
+function getClient(id){return db.clients.find(c=>c.id==id)}
+function getProcess(id){return db.processes.find(p=>p.id==id)}
+
+let currentView='dashboard',selectedClientId=null,selectedProcessId=null,taskFilter='todas',modelFilter='',editingId=null;
+
+function goTo(view){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+view).classList.add('active');
+  document.querySelector(`[onclick="goTo('${view}')"]`).classList.add('active');
+  currentView=view; selectedClientId=null; selectedProcessId=null;
+  renderView(view);
+}
+function renderView(v){
+  if(v==='dashboard')renderDashboard();
+  else if(v==='clients')renderClients();
+  else if(v==='processes')renderProcesses();
+  else if(v==='tasks')renderTasks();
+  else if(v==='documents')renderDocuments();
+  updateUrgentBadge();
+}
+function updateUrgentBadge(){
+  const count=db.tasks.filter(t=>t.priority==='urgente'&&t.status==='pendente').length;
+  const b=document.getElementById('urgent-badge');
+  b.textContent=count;b.style.display=count>0?'inline-block':'none';
+}
+
+// DASHBOARD
+function renderDashboard(){
+  const active=db.clients.filter(c=>c.status==='ativo').length;
+  const pending=db.tasks.filter(t=>t.status==='pendente').length;
+  const urgent=db.tasks.filter(t=>t.priority==='urgente'&&t.status==='pendente').length;
+  document.getElementById('kpi-grid').innerHTML=[
+    {icon:'👤',value:active,label:'Clientes Ativos',color:'#22C55E'},
+    {icon:'⚖️',value:db.processes.length,label:'Processos',color:'#3B82F6'},
+    {icon:'📋',value:pending,label:'Tarefas Pendentes',color:'#F97316'},
+    {icon:'🔥',value:urgent,label:'Urgentes',color:'#EF4444'},
+  ].map(k=>`<div class="kpi-card" style="border-color:${k.color}33"><div class="kpi-icon">${k.icon}</div><div class="kpi-value" style="color:${k.color}">${k.value}</div><div class="kpi-label">${k.label}</div></div>`).join('');
+  const upcoming=db.tasks.filter(t=>t.status==='pendente'&&t.deadline&&daysUntil(t.deadline)<=7&&daysUntil(t.deadline)>=0);
+  const dl=document.getElementById('dash-deadlines');
+  if(!upcoming.length){dl.innerHTML='<p style="color:var(--muted);font-size:13px">Nenhum prazo urgente.</p>';}
+  else dl.innerHTML=upcoming.map(t=>{const d=daysUntil(t.deadline);const dc=d<=2?'#EF4444':'#F97316';return`<div class="deadline-item"><div class="deadline-row"><div><div class="deadline-name">${t.title}</div><div class="deadline-meta">${t.responsible||''} · ${fmtDate(t.deadline)}</div></div><span class="badge" style="background:${dc}22;color:${dc};border:1px solid ${dc}44">${d===0?'HOJE':d+'d'}</span></div></div>`}).join('');
+  const byArea=AREAS.map(a=>({area:a,count:db.processes.filter(p=>p.area===a).length})).filter(x=>x.count>0);
+  const maxC=Math.max(...byArea.map(x=>x.count),1);
+  document.getElementById('dash-areas').innerHTML=byArea.length?byArea.map(x=>`<div class="bar-row"><span class="bar-label">${x.area}</span><div class="bar-wrap"><div class="bar" style="width:${Math.max(20,x.count/maxC*140)}px"></div><span class="bar-count">${x.count}</span></div></div>`).join(''):'<p style="color:var(--muted);font-size:13px">Nenhum processo.</p>';
+}
+
+// CLIENTS
+function renderClients(){
+  const search=(document.getElementById('client-search')?.value||'').toLowerCase();
+  const areaF=document.getElementById('client-area-filter')?.value||'';
+  const sel=document.getElementById('client-area-filter');
+  if(sel&&sel.options.length<=1){AREAS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;sel.appendChild(o)});if(areaF)sel.value=areaF}
+  const filtered=db.clients.filter(c=>(c.name.toLowerCase().includes(search)||(c.cpf||'').includes(search))&&(!areaF||c.area===areaF));
+  const layout=document.getElementById('clients-layout');
+  layout.className='grid-split'+(selectedClientId?' with-panel':'');
+  let listHtml=filtered.length===0?'<p style="color:var(--muted);font-size:14px">Nenhum cliente encontrado.</p>':filtered.map(c=>`<div class="card clickable" style="margin-bottom:10px${selectedClientId==c.id?';border-color:rgba(201,168,76,.6)':''}" onclick="selectClient('${c.id}')"><div style="display:flex;justify-content:space-between;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:15px;margin-bottom:4px">${c.name}</div><div style="color:var(--muted);font-size:12px">${c.cpf||''} ${c.phone?'· '+c.phone:''} ${c.city?'· '+c.city:''}</div>${c.notes?`<div style="color:var(--muted);font-size:12px;margin-top:5px;font-style:italic">${c.notes.slice(0,80)}${c.notes.length>80?'...':''}</div>`:''}</div><div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0">${badge(STATUS_LABELS[c.status]||c.status,STATUS_COLORS[c.status]||'#6B7A99')}${c.area?badge(c.area,'#3B82F6'):''}</div></div></div>`).join('');
+  let panelHtml='';
+  if(selectedClientId){const c=getClient(selectedClientId);if(c){const procs=db.processes.filter(p=>p.clientId==c.id);panelHtml=`<div class="card panel"><div class="panel-header"><div class="panel-title">${c.name}</div><button class="close-btn" onclick="selectedClientId=null;renderClients()">✕</button></div>${[['CPF',c.cpf],['Telefone',c.phone],['E-mail',c.email],['Cidade',c.city],['Cliente desde',fmtDate(c.createdAt)],['Área',c.area]].filter(([,v])=>v).map(([k,v])=>`<div class="detail-row"><span class="detail-label">${k}: </span><span class="detail-value">${v}</span></div>`).join('')}${c.notes?`<div class="note-box"><div class="detail-label" style="margin-bottom:4px">Observações</div><div style="font-size:13px;color:var(--text)">${c.notes}</div></div>`:''} ${procs.length?`<div style="margin-top:14px"><div class="detail-label" style="margin-bottom:8px">Processos (${procs.length})</div>${procs.map(p=>`<div style="background:var(--subtle);border-radius:8px;padding:8px 12px;margin-bottom:6px"><div style="font-size:12px;font-weight:600;color:var(--text)">${p.type}</div><div style="font-size:11px;color:var(--muted)">${p.number}</div></div>`).join('')}</div>`:''}<div class="panel-actions"><button class="btn btn-outline btn-sm" onclick="openClientForm('${c.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">Remover</button></div></div>`;}}
+  layout.innerHTML=`<div id="clients-list">${listHtml}</div>${panelHtml}`;
+}
+function selectClient(id){selectedClientId=selectedClientId==id?null:id;renderClients()}
+async function deleteClient(id){if(!confirm('Remover cliente?'))return;db.clients=db.clients.filter(c=>c.id!==id);await fbDelete('clients',id);selectedClientId=null;renderClients()}
+
+// PROCESSES
+function renderProcesses(){
+  const search=(document.getElementById('proc-search')?.value||'').toLowerCase();
+  const areaF=document.getElementById('proc-area-filter')?.value||'';
+  const advF=document.getElementById('proc-adv-filter')?.value||'';
+  const sel=document.getElementById('proc-area-filter');
+  if(sel&&sel.options.length<=1){AREAS.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;sel.appendChild(o)});if(areaF)sel.value=areaF}
+  const filtered=db.processes.filter(p=>{const cl=getClient(p.clientId);return(p.number.toLowerCase().includes(search)||p.type.toLowerCase().includes(search)||(cl?.name||'').toLowerCase().includes(search))&&(!areaF||p.area===areaF)&&(!advF||p.responsible===advF)});
+  const SC={em_andamento:'#3B82F6',aguardando:'#F97316',arquivado:'#6B7A99',concluido:'#22C55E'};
+  const SL={em_andamento:'Em Andamento',aguardando:'Aguardando',arquivado:'Arquivado',concluido:'Concluído'};
+  const layout=document.getElementById('processes-layout');
+  layout.className='grid-split'+(selectedProcessId?' with-panel':'');
+  const listHtml=filtered.length===0?'<p style="color:var(--muted);font-size:14px">Nenhum processo encontrado.</p>':filtered.map(p=>{const cl=getClient(p.clientId);const d=daysUntil(p.deadline);const dc=d!==null&&d<=3?'#EF4444':d!==null&&d<=7?'#F97316':'var(--text)';return`<div class="card clickable proc-card" style="${selectedProcessId==p.id?'border-color:rgba(201,168,76,.6)':''}" onclick="selectProcess('${p.id}')"><div class="proc-row"><div style="flex:1"><div class="proc-badges">${badge(SL[p.status]||p.status,SC[p.status]||'#6B7A99')}${p.area?badge(p.area,'#A855F7'):''}${p.phase?badge(PHASE_LABELS[p.phase]||p.phase,'#6B7A99'):''}</div><div class="proc-name">${p.type}</div>${cl?`<div class="proc-client">${cl.name}</div>`:''}<div class="proc-meta">${p.number}${p.court&&p.court!=='—'?' · '+p.court:''}</div>${p.responsible?`<div class="proc-meta">Resp: ${p.responsible}</div>`:''}</div><div class="proc-deadline">${p.deadline?`<div style="font-size:11px;color:var(--muted)">Prazo</div><div style="font-size:13px;font-weight:600;color:${dc}">${fmtDate(p.deadline)}</div>${d!==null&&d>=0?`<div style="font-size:11px;color:var(--muted)">${d===0?'HOJE':d+'d'}</div>`:''}`:''} ${p.value&&p.value!=='—'?`<div style="font-size:12px;color:var(--muted);margin-top:5px">${p.value}</div>`:''}</div></div></div>`}).join('');
+  let panelHtml='';
+  if(selectedProcessId){const p=getProcess(selectedProcessId);if(p){const cl=getClient(p.clientId);const events=p.events||[];panelHtml=`<div class="card panel"><div class="panel-header"><div class="panel-title">${p.type}</div><button class="close-btn" onclick="selectedProcessId=null;renderProcesses()">✕</button></div>${[['Número',p.number],['Cliente',cl?.name],['Vara/Juízo',p.court],['Sistema',p.system],['Responsável',p.responsible],['Prazo',fmtDate(p.deadline)],['Valor',p.value]].filter(([,v])=>v&&v!=='—').map(([k,v])=>`<div class="detail-row"><span class="detail-label">${k}: </span><span class="detail-value">${v}</span></div>`).join('')}${p.description?`<div class="note-box" style="margin-top:10px"><div class="detail-label" style="margin-bottom:4px">Descrição</div><div style="font-size:13px;color:var(--text)">${p.description}</div></div>`:''}<div class="timeline"><div class="timeline-title">Movimentações</div>${events.length===0?'<p style="font-size:12px;color:var(--muted)">Nenhuma movimentação.</p>':events.map(e=>`<div class="timeline-item"><div class="timeline-line"></div><div><div class="timeline-date">${fmtDate(e.date)}</div><div class="timeline-text">${e.text}</div></div></div>`).join('')}<div class="timeline-input-row"><input class="timeline-input" id="new-event-input" placeholder="Registrar movimentação..." onkeydown="if(event.key==='Enter')addEvent('${p.id}')"><button class="btn btn-primary btn-sm" onclick="addEvent('${p.id}')">+</button></div></div><div class="panel-actions"><button class="btn btn-outline btn-sm" onclick="openProcessForm('${p.id}')">Editar</button><button class="btn btn-danger btn-sm" onclick="deleteProcess('${p.id}')">Remover</button></div></div>`;}}
+  layout.innerHTML=`<div id="processes-list">${listHtml}</div>${panelHtml}`;
+}
+function selectProcess(id){selectedProcessId=selectedProcessId==id?null:id;renderProcesses()}
+async function addEvent(pid){
+  const inp=document.getElementById('new-event-input');
+  if(!inp||!inp.value.trim())return;
+  const proc=db.processes.find(p=>p.id==pid);if(!proc)return;
+  if(!proc.events)proc.events=[];
+  proc.events.push({date:today(),text:inp.value.trim()});
+  await fbSave('processes',proc.id,proc);
+  selectedProcessId=pid;renderProcesses();
+}
+async function deleteProcess(id){if(!confirm('Remover processo?'))return;db.processes=db.processes.filter(p=>p.id!==id);await fbDelete('processes',id);selectedProcessId=null;renderProcesses()}
+
+// TASKS
+function setTaskFilter(btn){document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');taskFilter=btn.dataset.filter;renderTasks()}
+function renderTasks(){
+  let tasks=db.tasks;
+  if(taskFilter==='pendentes')tasks=tasks.filter(t=>t.status==='pendente');
+  else if(taskFilter==='urgentes')tasks=tasks.filter(t=>t.priority==='urgente'&&t.status==='pendente');
+  else if(taskFilter==='concluidas')tasks=tasks.filter(t=>t.status==='concluido');
+  const list=document.getElementById('tasks-list');
+  if(!tasks.length){list.innerHTML='<p style="color:var(--muted);font-size:14px">Nenhuma tarefa encontrada.</p>';return}
+  list.innerHTML=tasks.map(t=>{const done=t.status==='concluido';const d=daysUntil(t.deadline);const dc=!done&&d!==null&&d<=3?'#EF4444':!done&&d!==null&&d<=7?'#F97316':'var(--muted)';const cl=getClient(t.clientId)||(t.processId?getClient(getProcess(t.processId)?.clientId):null);return`<div class="card" style="margin-bottom:10px;opacity:${done?.6:1}"><div class="task-row"><div class="checkbox ${done?'done':''}" onclick="toggleTask('${t.id}')">${done?'✓':''}</div><div style="flex:1"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div class="task-title ${done?'done':''}">${t.title}</div><div class="task-badges">${badge(t.priority,PRIORITY_COLORS[t.priority]||'#6B7A99')}${t.responsible?badge(t.responsible,'#A855F7'):''}${cl?badge(cl.name,'#C9A84C'):''}</div>${t.notes?`<div style="font-size:12px;color:var(--muted);margin-top:5px">${t.notes}</div>`:''}</div><div class="task-deadline">${t.deadline?`<div style="font-size:12px;font-weight:600;color:${dc}">${fmtDate(t.deadline)}</div>${!done&&d!==null&&d>=0?`<div style="font-size:11px;color:var(--muted)">${d===0?'HOJE':'em '+d+'d'}</div>`:''}`:''}  <button class="edit-link" onclick="openTaskForm('${t.id}')">editar</button></div></div></div></div></div>`}).join('');
+}
+async function toggleTask(id){const t=db.tasks.find(t=>t.id==id);if(!t)return;t.status=t.status==='concluido'?'pendente':'concluido';await fbSave('tasks',t.id,t);renderTasks();updateUrgentBadge()}
+
+// DOCUMENTS
+const MODELS=[{name:"Petição Inicial — Bancário (Revisional)",tag:"Bancário",icon:"🏦"},{name:"Petição Inicial — Dano Moral / Consumidor",tag:"Consumidor",icon:"⚖️"},{name:"Ação Declaratória de Inexistência de Débito",tag:"Consumidor",icon:"📄"},{name:"Cumprimento de Sentença — Alimentos",tag:"Família",icon:"👶"},{name:"Agravo de Instrumento",tag:"Recursal",icon:"📋"},{name:"Agravo Regimental (HC)",tag:"Criminal",icon:"🔓"},{name:"Apelação Criminal",tag:"Criminal",icon:"⚖️"},{name:"Notificação Extrajudicial — Plano de Saúde",tag:"Consumidor",icon:"💊"},{name:"Resposta à Acusação (Criminal)",tag:"Criminal",icon:"🛡️"},{name:"Embargos de Declaração",tag:"Processual",icon:"📝"},{name:"Contrato de Honorários — Geral",tag:"Administrativo",icon:"🤝"},{name:"Contrato de Honorários — Trabalhista",tag:"Trabalhista",icon:"👷"},{name:"Procuração Ad Judicia",tag:"Administrativo",icon:"✍️"},{name:"Proposta de Honorários",tag:"Administrativo",icon:"💰"},{name:"Declaração de Hipossuficiência",tag:"Administrativo",icon:"📜"},{name:"Pedido de Gratuidade de Justiça",tag:"Processual",icon:"⚖️"},{name:"Planejamento Previdenciário",tag:"Previdenciário",icon:"🏛️"},{name:"Ficha de Atendimento",tag:"Administrativo",icon:"📋"}];
+function renderDocuments(){const tags=[...new Set(MODELS.map(m=>m.tag))];document.getElementById('model-filters').innerHTML=`<button class="filter-btn ${!modelFilter?'active':''}" onclick="setModelFilter(this,'')">Todos</button>`+tags.map(t=>`<button class="filter-btn ${modelFilter===t?'active':''}" style="${modelFilter===t?`background:${TAG_COLORS[t]||'#6B7A99'};border-color:${TAG_COLORS[t]||'#6B7A99'}`:''}" onclick="setModelFilter(this,'${t}')">${t}</button>`).join('');const mods=modelFilter?MODELS.filter(m=>m.tag===modelFilter):MODELS;document.getElementById('model-grid').innerHTML=mods.map(m=>`<div class="model-card"><div class="model-icon">${m.icon}</div><div class="model-name">${m.name}</div>${badge(m.tag,TAG_COLORS[m.tag]||'#6B7A99')}</div>`).join('')}
+function setModelFilter(btn,tag){modelFilter=tag;renderDocuments()}
+
+// MODALS
+function openModal(title,html,wide=false){document.getElementById('modal-title').textContent=title;document.getElementById('modal-body').innerHTML=html;document.getElementById('modal-box').className='modal'+(wide?' wide':'');document.getElementById('modal-overlay').classList.add('open')}
+function closeModal(e){if(e.target===document.getElementById('modal-overlay'))closeModalDirect()}
+function closeModalDirect(){document.getElementById('modal-overlay').classList.remove('open');editingId=null}
+function sel(opts,val,name){return`<select class="form-control" name="${name}"><option value="">— Selecione —</option>${opts.map(o=>`<option value="${o}"${o===val?' selected':''}>${o}</option>`).join('')}</select>`}
+function inp(type,val,name,ph=''){return`<input type="${type}" class="form-control" name="${name}" value="${val||''}" placeholder="${ph}">`}
+function ta(val,name,ph=''){return`<textarea class="form-control" name="${name}" placeholder="${ph}">${val||''}</textarea>`}
+function fgroup(label,html,req=false,col2=false){return`<div class="form-group${col2?' form-col2':''}"><label class="form-label">${label}${req?'<span>*</span>':''}</label>${html}</div>`}
+function get(n){return document.getElementById('modal-body').querySelector(`[name="${n}"]`)?.value?.trim()||''}
+
+function openClientForm(id=null){editingId=id;const c=id?getClient(id):{};const html=`<div class="form-grid">${fgroup('Nome completo',inp('text',c.name,'name'),true,true)}${fgroup('CPF',inp('text',c.cpf,'cpf','000.000.000-00'))}${fgroup('Telefone',inp('text',c.phone,'phone','(31) 9...'))}${fgroup('E-mail',inp('email',c.email,'email'))}${fgroup('Cidade/UF',inp('text',c.city,'city'))}${fgroup('Status',sel(['ativo','prospecto','arquivado'],c.status||'ativo','status'))}${fgroup('Área',sel(AREAS,c.area,'area'))}${fgroup('Observações',ta(c.notes,'notes'),false,true)}</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModalDirect()">Cancelar</button><button class="btn btn-primary" onclick="saveClient()">Salvar</button></div>`;openModal(id?'Editar Cliente':'Novo Cliente',html)}
+async function saveClient(){if(!get('name')){alert('Nome obrigatório');return}const data={name:get('name'),cpf:get('cpf'),phone:get('phone'),email:get('email'),city:get('city'),status:get('status')||'ativo',area:get('area'),notes:get('notes'),createdAt:editingId?(getClient(editingId)?.createdAt||today()):today()};if(editingId){data.id=editingId;Object.assign(getClient(editingId),data);}else{data.id=newId('c');db.clients.push(data);}await fbSave('clients',data.id,data);closeModalDirect();renderClients()}
+
+function openProcessForm(id=null){editingId=id;const p=id?getProcess(id):{};const clientOpts=db.clients.map(c=>`<option value="${c.id}"${c.id==p.clientId?' selected':''}>${c.name}</option>`).join('');const html=`<div class="form-grid">${fgroup('Tipo / Ação',inp('text',p.type,'type','Ex: Ação Revisional'),true)}${fgroup('Número',inp('text',p.number,'number'))}${fgroup('Área',sel(AREAS,p.area,'area'))}${fgroup('Fase',sel(PHASES,p.phase,'phase'))}${fgroup('Vara / Juízo',inp('text',p.court,'court'))}${fgroup('Sistema',sel(SYSTEMS,p.system,'system'))}${fgroup('Responsável',sel(['Igor Sabino','Sara Batista'],p.responsible,'responsible'))}${fgroup('Status',sel(['em_andamento','aguardando','concluido','arquivado'],p.status||'em_andamento','status'))}${fgroup('Prazo',`<input type="date" class="form-control" name="deadline" value="${p.deadline||''}">`)}${fgroup('Valor',inp('text',p.value,'value','R$ 0,00'))}<div class="form-group form-col2"><label class="form-label">Cliente</label><select class="form-control" name="clientId"><option value="">— Selecione —</option>${clientOpts}</select></div>${fgroup('Descrição',ta(p.description,'description'),false,true)}</div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModalDirect()">Cancelar</button><button class="btn btn-primary" onclick="saveProcess()">Salvar</button></div>`;openModal(id?'Editar Processo':'Novo Processo',html,true)}
+async function saveProcess(){if(!get('type')){alert('Tipo obrigatório');return}const data={type:get('type'),number:get('number'),area:get('area'),phase:get('phase'),court:get('court'),system:get('system'),responsible:get('responsible'),status:get('status')||'em_andamento',deadline:get('deadline'),value:get('value'),description:get('description'),clientId:get('clientId')||null};if(editingId){data.id=editingId;data.events=getProcess(editingId).events||[];Object.assign(getProcess(editingId),data);}else{data.id=newId('p');data.events=[];db.processes.push(data);}await fbSave('processes',data.id,data);closeModalDirect();renderProcesses()}
+
+function openTaskForm(id=null){editingId=id;const t=id?db.tasks.find(x=>x.id==id):{};const procOpts=db.processes.map(p=>`<option value="${p.id}"${p.id==t.processId?' selected':''}>${p.type}</option>`).join('');const html=`${fgroup('Título',inp('text',t.title,'title'),true,true)}<div class="form-grid">${fgroup('Responsável',sel(['Igor Sabino','Sara Batista'],t.responsible,'responsible'))}${fgroup('Prioridade',sel(['urgente','importante','normal'],t.priority||'normal','priority'))}${fgroup('Prazo',`<input type="date" class="form-control" name="deadline" value="${t.deadline||''}">`)}${fgroup('Status',sel(['pendente','concluido'],t.status||'pendente','status'))}</div><div class="form-group"><label class="form-label">Processo (opcional)</label><select class="form-control" name="processId"><option value="">— Nenhum —</option>${procOpts}</select></div>${fgroup('Observações',ta(t.notes,'notes'))}<div class="modal-footer"><button class="btn btn-outline" onclick="closeModalDirect()">Cancelar</button><button class="btn btn-primary" onclick="saveTask()">Salvar</button></div>`;openModal(id?'Editar Tarefa':'Nova Tarefa',html)}
+async function saveTask(){if(!get('title')){alert('Título obrigatório');return}const data={title:get('title'),responsible:get('responsible'),priority:get('priority')||'normal',status:get('status')||'pendente',deadline:get('deadline'),notes:get('notes'),processId:get('processId')||null,clientId:null};if(editingId){data.id=editingId;Object.assign(db.tasks.find(t=>t.id==editingId),data);}else{data.id=newId('t');db.tasks.push(data);}await fbSave('tasks',data.id,data);closeModalDirect();renderTasks();updateUrgentBadge()}
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('firebase-ready', () => startApp(false));
+setTimeout(() => { if (!window._fbReady) { document.getElementById('config-alert').classList.add('show'); document.getElementById('loading-screen').classList.add('hidden'); } }, 5000);
+</script>
+</body>
+</html>
